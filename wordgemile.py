@@ -6,6 +6,8 @@ C_YELLOW = r"[38;5;220m"
 C_GREEN = r"[38;5;34m"
 C_RESET = r"[0m"
 
+DATABASE = "wordle.sqlite"
+
 
 class Wordle:
     """
@@ -64,7 +66,7 @@ def choose_random_word():
     """
     Chooses a new word from the list available
     """
-    con = sqlite3.connect('wordle.sqlite')
+    con = sqlite3.connect(DATABASE)
     cursor = con.cursor()
 
     current_word = ""
@@ -92,7 +94,7 @@ def create_database(word_file):
     """
     Loads a word file and creates the database
     """
-    con = sqlite3.connect('wordle.sqlite')
+    con = sqlite3.connect(DATABASE)
     cursor = con.cursor()
 
     # This is the table holding all possible words

@@ -1,0 +1,6 @@
+*.sqlite
+*.pyc
+.ropeproject/
+*.swp
+*.bak
+__pycache__/

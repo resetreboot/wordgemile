@@ -11,6 +11,10 @@ DATABASE = "wordle.sqlite"
 ROTATION_TIME = 960
 
 
+class GameNotFoundException(Exception):
+    pass
+
+
 class Wordle:
     """
     This class holds a game session, with the name
@@ -26,19 +30,52 @@ class Wordle:
         # the markings we have calculated as hints
         self.board = []
 
+    def create_board(self, cert_id):
+        """
+        Generates a new game, checks that the current word
+        has not already been guessed and returns a session id
+        """
+        self.cert_id = cert_id
+        current_word = get_current_word()
+
+        con = sqlite3.connect(DATABASE)
+        cursor = con.cursor()
+
+        cursor.execute("""SELECT word FROM sessions WHERE
+                       cert_id = ? ORDER BY timestamp DESC""",
+                       (self.cert_id,))
+
+        res = cursor.fetchone()
+
+        if res and res[0] == current_word:
+            # The word has been already solved or failed
+            return None
+
+        else:
+            # There's no previous session or the word was different
+            self.sess_id = self._generate_session_id()
+            return self.sess_id
+
     def load_board(self, sess_id, cert_id):
         self.sess_id = sess_id
         self.cert_id = cert_id
         con = sqlite3.connect(DATABASE)
         cursor = con.cursor()
 
-        cursor.execute("SELECT name, words, goal_word from sessions")
+        cursor.execute("""SELECT name, words, goal_word from sessions
+                       WHERE id = ? and certid = ?""",
+                       (self.sess_id, self.cert_id))
         res = cursor.fetchone()
-        self.player = res[0]  # Load the player's name
-        self.goal_word = res[2]    # Load the goal word
-        words = res[1]        # Load the tried words
+        if res:
+            self.player = res[0]  # Load the player's name
+            self.goal_word = res[2]    # Load the goal word
+            words = res[1]        # Load the tried words
+            con.close()
 
-        con.close()
+        else:
+            con.close()
+            raise GameNotFoundException
+
         self._generate_board(words.split(","))
 
     def _generate_session_id(self):
@@ -47,18 +84,37 @@ class Wordle:
         return sess_id
 
     def save_board(self, cert_id):
-        if not self.sess_id:
-            self.sess_id = self._generate_session_id()
-
         self.cert_id = cert_id
-
-        words = ",".join([word[0] for word in self.board])
 
         con = sqlite3.connect(DATABASE)
         cursor = con.cursor()
-        cursor.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
-                       (self.sess_id, self.cert_id, self.name,
-                        words, self.goal_word, int(time())))
+
+        new_game = False
+
+        if not self.sess_id:
+            self.sess_id = self._generate_session_id()
+            new_game = True
+
+        words = ",".join([word[0] for word in self.board])
+
+        if new_game:
+            cursor.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?, ?)",
+                        (self.sess_id, self.cert_id, self.player,
+                            words, self.goal_word, int(time())))
+
+        else:
+            # Check the session and the cert match
+            cursor.execute("""SELECT * FROM sessions
+                           WHERE id = ? and certid = ?""",
+                           (self.sess_id, self.cert_id))
+            if cursor.fetchone():
+                # If its correct, we update the session
+                cursor.execute("UPDATE sessions SET (name, words) = (?, ?)",
+                               (self.player, words))
+
+            else:
+                raise GameNotFoundException
+
         con.commit()
         con.close()
 
@@ -74,8 +130,7 @@ class Wordle:
         markings = []
         parsed_letters = []
         for letter_pair in zip(word, self.goal_word):
-            if letter_pair[0] not in self.goal_word or \
-                    letter_pair[0] in parsed_letters:
+            if letter_pair[0] not in self.goal_word:
                 markings.append(None)
 
             elif letter_pair[0] == letter_pair[1]:
@@ -89,7 +144,7 @@ class Wordle:
         return markings
 
     def input_word(self, word):
-        if check_word(word, check_repeats=False):
+        if check_word(word):
             markings = self._generate_markings(word)
             self.board.append((word, markings))
 
@@ -98,41 +153,59 @@ class Wordle:
         return False
 
     def print_board(self):
-        print("```")
+        text = "```\n"
         for word, markings in self.board:
-            self.output_word(word, markings)
-            print("")
+            text += self.output_word(word, markings)
+            text += "\n"
 
-        print("\n```\n")
+        text += "```\n"
+        return text
 
     def output_word(self, word, markings):
         """
         Outputs the word with the correct colors
         """
+        text = ""
         for letter, mark in zip(word, markings):
             if mark == "Y":
-                print(C_YELLOW, end="")
+                text += C_YELLOW
 
             elif mark == "G":
-                print(C_GREEN, end="")
+                text += C_GREEN
 
-            print(letter, end="")
-            print(C_RESET, end="")
+            text += letter
+            text += C_RESET
+
+        return text
+
+    def _is_found(self):
+        """
+        Check if the word has been found
+        """
+        last_game = self.board[-1]
+        marks = "".join([elem for elem in last_game[1] if elem])
+        return marks == "GGGGG"
 
     @property
     def is_completed(self):
         """
-        If the word has been discovered, return True
+        If the word has been discovered or too many turns, return True
         """
-        if len(self.board) > 0:
-            last_game = self.board[-1]
-            marks = "".join([elem for elem in last_game[1] if elem])
-            return marks == "GGGGG"
+        turns = len(self.board)
+        if turns > 0:
+            return turns == 6 or self._is_found()
 
         return False
 
+    @property
+    def is_win(self):
+        if self._is_found():
+            return True
 
-def check_word(word, check_repeats=True):
+        return len(self.board) < 6
+
+
+def check_word(word):
     """
     Makes sure the word is compliant with the game's word restrictions.
 
@@ -142,12 +215,7 @@ def check_word(word, check_repeats=True):
     if len(word) != 5:
         return False
 
-    correct = True
-    if check_repeats:
-        for letter in word:
-            correct = correct and (word.count(letter) == 1)
-
-    return correct
+    return True
 
 
 def choose_random_word():
@@ -256,6 +324,8 @@ def create_database(word_file):
 
 
 if __name__ == "__main__":
+    sess_id = None
+    cert_id = None
     if len(sys.argv) > 1 and sys.argv[1] == "--load":
         if len(sys.argv) == 3:
             create_database(sys.argv[2])
@@ -264,14 +334,33 @@ if __name__ == "__main__":
             print("Usage: --load <word_text_filename>")
             sys.exit(1)
 
-    word = get_current_word()
-    game_session = Wordle(word, "Reset")
+    elif len(sys.argv) > 1 and sys.argv[1] == "--sessid":
+        sess_id = input("Enter session ID: ")
+
+    cert_id = input("Enter cert ID: ")
+
+    if not sess_id:
+        word = get_current_word()
+        game_session = Wordle(word, "Reset")
+
+    else:
+        game_session = Wordle("", "Reset")
+        game_session.load_board(sess_id, cert_id)
+
     game_session.print_board()
 
     while not game_session.is_completed:
         new_word = input("Enter word: ")
         if game_session.input_word(new_word):
-            game_session.print_board()
+            print(f"Session ID: {game_session.sess_id}")
+            print(game_session.print_board())
+            game_session.save_board(cert_id)
 
         else:
             print("Not a valid word, try again.")
+
+    if not game_session.is_win:
+        print(f"You lose, the word was {game_session.goal_word}")
+
+    else:
+        print("You win!")

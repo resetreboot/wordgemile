@@ -7,7 +7,8 @@ C_YELLOW = r"[38;5;220m"
 C_GREEN = r"[38;5;34m"
 C_RESET = r"[0m"
 
-DATABASE = "wordle.sqlite"
+DATABASE = "/var/gemini/cgi-bin/wordle.sqlite"
+# DATABASE = "wordle.sqlite"
 ROTATION_TIME = 960
 
 
@@ -41,8 +42,8 @@ class Wordle:
         con = sqlite3.connect(DATABASE)
         cursor = con.cursor()
 
-        cursor.execute("""SELECT word FROM sessions WHERE
-                       cert_id = ? ORDER BY timestamp DESC""",
+        cursor.execute("""SELECT goal_word FROM sessions WHERE
+                       certid = ? ORDER BY timestamp DESC""",
                        (self.cert_id,))
 
         res = cursor.fetchone()
@@ -53,7 +54,8 @@ class Wordle:
 
         else:
             # There's no previous session or the word was different
-            self.sess_id = self._generate_session_id()
+            self.goal_word = current_word
+            self.save_board(self.cert_id)
             return self.sess_id
 
     def load_board(self, sess_id, cert_id):

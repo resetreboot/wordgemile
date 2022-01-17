@@ -4,9 +4,10 @@ a CGI connection
 """
 
 
-def send_text(text, coding="text/gemini"):
+def send_text(text, coding="text/gemini;charset=utf-8"):
     print(f"20 {coding}\r\n")
-    print(f"{text}\r\n")
+    parsed_text = text.replace("\n", "\r\n")
+    print(f"{parsed_text}\r\n")
 
 
 def send_error(error):

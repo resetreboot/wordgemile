@@ -49,7 +49,10 @@ def notfound():
 
 
 def about():
-    gemcgi.send_text("""# Wordle Gemini
+    script = os.environ.get("SCRIPT_NAME")
+    host = get_host()
+
+    text = """# Wordle Gemini
 
 Pequeño juego de intentar adivinar la palabra.
 
@@ -64,7 +67,12 @@ para dar pistas.
 * Sin color: La letra no está presente en la palabra.
 
 Hay seis intentos para conseguir adivinar la palabla, buena suerte!
-    """)
+
+=> """
+
+    text += f"gemini://{host}{script}/game Jugar"
+
+    gemcgi.send_text(text)
 
 
 def game(session_id, player, certid):

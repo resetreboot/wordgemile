@@ -78,7 +78,7 @@ class Wordle:
             con.close()
             raise GameNotFoundException
 
-        self._generate_board(words.split(","))
+        self._generate_board([word for word in words.split(",") if word])
 
     def _generate_session_id(self):
         sess_id = str(uuid.uuid4())

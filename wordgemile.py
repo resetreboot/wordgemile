@@ -145,7 +145,8 @@ class Wordle:
 
         return markings
 
-    def input_word(self, word):
+    def input_word(self, input_word):
+        word = input_word.lower()
         if check_word(word):
             markings = self._generate_markings(word)
             self.board.append((word, markings))
@@ -175,7 +176,7 @@ class Wordle:
             elif mark == "G":
                 text += C_GREEN
 
-            text += letter
+            text += letter.upper()
             text += C_RESET
 
         return text
@@ -212,12 +213,8 @@ def check_word(word):
     Makes sure the word is compliant with the game's word restrictions.
 
     - 5 letters long.
-    - No letter repeats.
     """
-    if len(word) != 5:
-        return False
-
-    return True
+    return len(word) != 5
 
 
 def choose_random_word():
@@ -304,7 +301,7 @@ def create_database(word_file):
     rejected = 0
     with open(word_file, 'r') as f:
         for word in f:
-            w = word.replace("\n", "")
+            w = word.replace("\n", "").lower()
             count += 1
             if check_word(w):
                 inserted += 1

@@ -214,7 +214,7 @@ def check_word(word):
 
     - 5 letters long.
     """
-    return len(word) != 5
+    return len(word) == 5
 
 
 def choose_random_word():
@@ -301,7 +301,8 @@ def create_database(word_file):
     rejected = 0
     with open(word_file, 'r') as f:
         for word in f:
-            w = word.replace("\n", "").lower()
+            w = word.replace("\n", "")
+            w = w.lower()
             count += 1
             if check_word(w):
                 inserted += 1

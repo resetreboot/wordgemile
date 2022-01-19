@@ -111,8 +111,9 @@ class Wordle:
                            (self.sess_id, self.cert_id))
             if cursor.fetchone():
                 # If its correct, we update the session
-                cursor.execute("UPDATE sessions SET (name, words) = (?, ?)",
-                               (self.player, words))
+                cursor.execute("""UPDATE sessions SET (name, words) = (?, ?)
+                               WHERE id = ? and certid = ?""",
+                               (self.player, words, self.sess_id, self.cert_id))
 
             else:
                 raise GameNotFoundException

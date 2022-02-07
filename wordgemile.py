@@ -7,6 +7,9 @@ C_YELLOW = r"[38;5;220m"
 C_GREEN = r"[38;5;34m"
 C_RESET = r"[0m"
 
+UNICODE_CIRCLED = 9333
+UNICODE_SQUARED = 127215
+
 DATABASE = "/var/gemini/cgi-bin/wordle.sqlite"
 # DATABASE = "wordle.sqlite"
 ROTATION_TIME = 960
@@ -113,7 +116,8 @@ class Wordle:
                 # If its correct, we update the session
                 cursor.execute("""UPDATE sessions SET (name, words) = (?, ?)
                                WHERE id = ? and certid = ?""",
-                               (self.player, words, self.sess_id, self.cert_id))
+                               (self.player, words, self.sess_id,
+                                self.cert_id))
 
             else:
                 raise GameNotFoundException
@@ -130,6 +134,11 @@ class Wordle:
             self.board.append((word, markings))
 
     def _generate_markings(self, word):
+        """
+        Generates the marks and squares or circles
+        the words depending on their presence and
+        position regarding the goal word.
+        """
         markings = []
         parsed_letters = []
         for letter_pair in zip(word, self.goal_word):
@@ -138,6 +147,7 @@ class Wordle:
 
             elif letter_pair[0] == letter_pair[1]:
                 markings.append("G")
+                parsed_letters.append(self._unicode_transform(letter_pair[0]))
 
             else:
                 markings.append("Y")
@@ -146,9 +156,56 @@ class Wordle:
 
         return markings
 
+    def _unicode_transform(self, letter, circle=False):
+        """
+        Transforms a letter into its unicode counterpart
+        with a square by default, or into a circle
+
+        Note that it will return the character as is
+        back with square brackets or normal brackets if
+        the letter is an international one (Unicode does
+        not have squared or circled international chars)
+        """
+        # Get the code for the upper case character
+        code = ord(letter)
+        if code >= 65 and code <= 90:
+            if circle:
+                return chr(code + UNICODE_CIRCLED)
+
+            else:
+                return chr(code + UNICODE_SQUARED)
+
+        elif circle:
+            return f"({letter})"
+
+        else:
+            return f"[{letter}]"
+
+    def _word_exists(self, word):
+        """
+        To avoid people inventing words, we check against
+        our own database to see if it exists
+        """
+        con = sqlite3.connect(DATABASE)
+        cursor = con.cursor()
+
+        cursor.execute("""SELECT * FROM words where word=?""", (word,))
+
+        if cursor.fetchone():
+            con.close()
+            return True
+
+        con.close()
+        return False
+
     def input_word(self, input_word):
+        if self.is_win or self.is_completed:
+            # Do not accept new words if the
+            # game is over
+            return False
+
         word = input_word.lower()
-        if check_word(word):
+        if check_word(word) and self._word_exists(word):
             markings = self._generate_markings(word)
             self.board.append((word, markings))
 
@@ -173,11 +230,16 @@ class Wordle:
         for letter, mark in zip(word, markings):
             if mark == "Y":
                 text += C_YELLOW
+                text += self._unicode_transform(letter.upper(),
+                                                circle=True)
 
             elif mark == "G":
                 text += C_GREEN
+                text += self._unicode_transform(letter.upper())
 
-            text += letter.upper()
+            else:
+                text += letter.upper()
+
             text += C_RESET
 
         return text
@@ -186,9 +248,12 @@ class Wordle:
         """
         Check if the word has been found
         """
-        last_game = self.board[-1]
-        marks = "".join([elem for elem in last_game[1] if elem])
-        return marks == "GGGGG"
+        if len(self.board) > 0:
+            last_game = self.board[-1]
+            marks = "".join([elem for elem in last_game[1] if elem])
+            return marks == "GGGGG"
+
+        return False
 
     @property
     def is_completed(self):
@@ -206,7 +271,7 @@ class Wordle:
         if self._is_found():
             return True
 
-        return len(self.board) < 6
+        return False
 
 
 def check_word(word):

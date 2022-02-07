@@ -60,10 +60,10 @@ Pequeño juego de intentar adivinar la palabra.
 
 Las palabras siempre serán de 5 letras. Puede haber palabras repetidas.
 A cada turno, se mostrará la palabra introducida con un código de color
-para dar pistas.
+ o una marca circular o cuadrada para dar pistas.
 
-* Amarillo: La letra está presente, pero en una posición incorrecta.
-* Verde: La letra está en la posición correcta.
+* Amarillo o círculo: La letra está presente, pero en una posición incorrecta.
+* Verde o cuadrado: La letra está en la posición correcta.
 * Sin color: La letra no está presente en la palabra.
 
 Hay seis intentos para conseguir adivinar la palabla, buena suerte!
@@ -100,9 +100,9 @@ This game does not exist, start a new one here:
         return
 
     else:
-        game_session.input_word(word)
-        game_session.save_board(certid)
         text = "# Wordle Gemini\n\n"
+        accept = game_session.input_word(word)
+        game_session.save_board(certid)
         text += f"## {len(game_session.board)}/6 intentos\n\n"
         text += game_session.print_board()
         if game_session.is_completed:
@@ -112,6 +112,9 @@ This game does not exist, start a new one here:
             else:
                 text += "\n## Game over\nHa perdido, la "
                 text += f"palabra era {game_session.goal_word}"
+
+            if not accept:
+                text += "\n\nEste juego se ha terminado, no aceptará más palabras."
 
         else:
             text += f"\n=> gemini://{host}{script}/game/{session_id} Introducir otra palabra"

@@ -35,7 +35,7 @@ def call_path():
             new_game(tls_name, tls_serial)
 
         else:
-            gemcgi.request_auth("Necesitas un certificado para autenticarte")
+            gemcgi.request_auth("A client certificate is required to play.")
 
     elif path == "/about":
         about()
@@ -54,23 +54,23 @@ def about():
 
     text = """# Wordle Gemini
 
-Pequeño juego de intentar adivinar la palabra.
+Small game to try to guess the word.
 
-## Instrucciones
+## Instructions
 
-Las palabras siempre serán de 5 letras. Puede haber palabras repetidas.
-A cada turno, se mostrará la palabra introducida con un código de color
- o una marca circular o cuadrada para dar pistas.
+All words are composed of 5 letters. There can be repeated letters.
+At each turn you will be shown the input word with a color code or a
+mark that can be circular or square to give hints.
 
-* Amarillo o círculo: La letra está presente, pero en una posición incorrecta.
-* Verde o cuadrado: La letra está en la posición correcta.
-* Sin color: La letra no está presente en la palabra.
+* Yellow - Circled: The letter is present, but the position is not correct.
+* Green - Squared: The letter is in the correct place.
+* No color, no marks: The letter is not present in the word to guess.
 
-Hay seis intentos para conseguir adivinar la palabla, buena suerte!
+You have six tries to guess the word, good luck!
 
 => """
 
-    text += f"gemini://{host}{script}/game Jugar"
+    text += f"gemini://{host}{script}/game Play"
 
     gemcgi.send_text(text)
 
@@ -96,28 +96,28 @@ This game does not exist, start a new one here:
         return
 
     if word == "":
-        gemcgi.send_input("Introduzca la palabra a buscar")
+        gemcgi.send_input("Input your word guess")
         return
 
     else:
         text = "# Wordle Gemini\n\n"
         accept = game_session.input_word(word)
         game_session.save_board(certid)
-        text += f"## {len(game_session.board)}/6 intentos\n\n"
+        text += f"## {len(game_session.board)}/6 tries\n\n"
         text += game_session.print_board()
         if game_session.is_completed:
             if game_session.is_win:
-                text += "\n## Correcto!\nEnhorabuena, ha acertado la palabra!"
+                text += "\n## Correct!\nCongratulations, you guessed the word!"
 
             else:
-                text += "\n## Game over\nHa perdido, la "
-                text += f"palabra era {game_session.goal_word}"
+                text += "\n## Game over\nYou lose, the "
+                text += f"word was {game_session.goal_word}"
 
             if not accept:
-                text += "\n\nEste juego se ha terminado, no aceptará más palabras."
+                text += "\n\nThis game is over, won't accept more words."
 
         else:
-            text += f"\n=> gemini://{host}{script}/game/{session_id} Introducir otra palabra"
+            text += f"\n=> gemini://{host}{script}/game/{session_id} Input new word"
 
         gemcgi.send_text(text)
 
@@ -130,15 +130,15 @@ def new_game(player, serial):
     text = ""
 
     if not session_id:
-        text += "# Nueva palabra aún no disponible\n\n"
-        text += "Cada 16 minutos aproximadamente, puedes "
-        text += "venir a resolver una nueva palabra"
+        text += "# New word not available\n\n"
+        text += "Every about 16 minutes, you can "
+        text += "try to guess a new word."
 
     else:
         text = "# Wordle Gemini\n\n"
-        text += f"## {len(game_session.board)}/6 intentos\n\n"
+        text += f"## {len(game_session.board)}/6 tries\n\n"
         text += game_session.print_board()
-        text += f"=> gemini://{host}{script}/game/{session_id} Introducir una palabra"
+        text += f"=> gemini://{host}{script}/game/{session_id} Input new word"
 
     gemcgi.send_text(text)
 

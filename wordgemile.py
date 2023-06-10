@@ -10,8 +10,7 @@ C_RESET = r"[0m"
 UNICODE_CIRCLED = 9333
 UNICODE_SQUARED = 127215
 
-DATABASE = "/var/gemini/cgi-bin/wordle.sqlite"
-# DATABASE = "wordle.sqlite"
+DATABASE = "wordle.sqlite"
 ROTATION_TIME = 960
 
 
